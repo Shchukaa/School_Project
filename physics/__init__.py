@@ -56,6 +56,8 @@ async def physics_calc(text: str) -> list:
                     ON dynamics_formulas.value_id = id
                     LEFT JOIN kinematics_formulas
                     ON kinematics_formulas.value_id = id
+                    LEFT JOIN hydrostatics_formulas
+                    ON kinematics_formulas.value_id = id
                     ORDER BY value
     ''')
 

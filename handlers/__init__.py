@@ -5,7 +5,7 @@ from physics import physics_calc
 
 @dp.message_handler(commands=['start', 'help'])
 async def start(message):
-    await bot.send_message(message.from_user.id, 'Привет, я ‍бот💻 для помощи с ✅решением физичских задач.'
+    await bot.send_message(message.from_user.id, 'Привет, я 🤖‍бот для помощи с ✅решением физичских задач.'
                                                  ' Выбери способ ввода условия задачи, и я попытаюсь помочь'
                                                  ' тебе ее решить 😼', reply_markup=keyboard)
 
@@ -31,12 +31,16 @@ async def start(message):
         img = message.photo[-1]
         await img.download(destination_file='C:/Users/t106o/PycharmProjects/UchiDomaProject/test_imgs/img.jpg')
         text = await photo_input()
+        text = text.replace('\n', '').replace('\r', ' ')
         await bot.send_message(message.from_user.id,
                                f'Текст📄 вашей задачи:\n{text}')
         formuls = await physics_calc(text)
         await bot.send_message(message.from_user.id,
-                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}',
+                               f'✅Вот подходящие 📃формулы для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+        await bot.send_message(message.from_user.id,
+                               f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                reply_markup=keyboard)
+        image_task_input = False
 
 
 @dp.message_handler()
@@ -45,7 +49,10 @@ async def some_send(message):
     if text_task_input:
         formuls = await physics_calc(message.text)
         await bot.send_message(message.from_user.id,
-                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+                               f'✅Вот подходящие 📃формулы для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+        await bot.send_message(message.from_user.id,
+                               f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
+                               reply_markup=keyboard)
         text_task_input = False
     else:
         await bot.send_message(message.from_user.id, '❌Я еще не знаю такой команды')

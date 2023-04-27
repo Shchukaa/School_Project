@@ -23,3 +23,5 @@ async def photo_input():
     text = result["ParsedResults"][0]["ParsedText"]
     os.remove('C:/Users/t106o/PycharmProjects/UchiDomaProject/test_imgs/img.jpg')
     return text
+
+
