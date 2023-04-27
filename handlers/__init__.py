@@ -32,8 +32,7 @@ async def start(message):
         await img.download(destination_file='C:/Users/t106o/PycharmProjects/UchiDomaProject/test_imgs/img.jpg')
         text = await photo_input()
         await bot.send_message(message.from_user.id,
-                               f'Текст📄 вашей задачи:\n{text}',
-                               reply_markup=keyboard)
+                               f'Текст📄 вашей задачи:\n{text}')
         formuls = await physics_calc(text)
         await bot.send_message(message.from_user.id,
                                f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}',
@@ -46,8 +45,7 @@ async def some_send(message):
     if text_task_input:
         formuls = await physics_calc(message.text)
         await bot.send_message(message.from_user.id,
-                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}',
-                               reply_markup=keyboard)
+                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
         text_task_input = False
     else:
         await bot.send_message(message.from_user.id, '❌Я еще не знаю такой команды')

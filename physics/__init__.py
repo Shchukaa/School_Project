@@ -48,7 +48,7 @@ def units_tranfrom(numbers: list) -> list:
 
 # Основная функция
 async def physics_calc(text: str) -> list:
-    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/UchiDomaProject/Physical_formulas.db')
+    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/UchiDoma-NewProject/Physical_formulas.db')
     cursor = conn.cursor()
 
     cursor.execute('''SELECT value, dynamics_formulas.formula, kinematics_formulas.formula, units, name FROM "values"
