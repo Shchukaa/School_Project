@@ -21,7 +21,10 @@
 
 ## Working principle
 
-* The User enters a physical task using text <b>or an image</b>![img1.png](readme_config/img1.png)
-* The bot processes this data by <b>selecting keywords</b> from the text ![img4.png](readme_config/img4.png)
-* Then the bot finds formulas for the specified physical quantities through the <b>database</b>![img3.png](readme_config/img3.png)
+* The User enters a physical task using text <b>or an image</b>
+![img1.png](readme_config/img1.png)
+* The bot processes this data by <b>selecting keywords</b> from the text 
+![img4.png](readme_config/img4.png)
+* Then the bot finds formulas for the specified physical quantities through the <b>database</b>
+![img3.png](readme_config/img3.png)
 * The bot sorts the found formulas by <b>usefulness</b> and outputs them to the user in a readable form![img2.png](readme_config/img2.png)

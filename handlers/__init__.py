@@ -5,7 +5,7 @@ from physics import physics_calc
 
 @dp.message_handler(commands=['start', 'help'])
 async def start(message):
-    await bot.send_message(message.from_user.id, 'Привет, я 🤖‍бот для помощи с ✅решением физичских задач.'
+    await bot.send_message(message.from_user.id, 'Привет, я ‍бот🤖 для помощи с решением✅ физичских задач.'
                                                  ' Выбери способ ввода условия задачи, и я попытаюсь помочь'
                                                  ' тебе ее решить 😼', reply_markup=keyboard)
 
@@ -36,7 +36,7 @@ async def start(message):
                                f'Текст📄 вашей задачи:\n{text}')
         formuls = await physics_calc(text)
         await bot.send_message(message.from_user.id,
-                               f'✅Вот подходящие 📃формулы для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
         await bot.send_message(message.from_user.id,
                                f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                reply_markup=keyboard)
@@ -49,7 +49,7 @@ async def some_send(message):
     if text_task_input:
         formuls = await physics_calc(message.text)
         await bot.send_message(message.from_user.id,
-                               f'✅Вот подходящие 📃формулы для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+                               f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
         await bot.send_message(message.from_user.id,
                                f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                reply_markup=keyboard)

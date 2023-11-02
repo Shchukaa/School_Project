@@ -1,6 +1,7 @@
 import re
 import sqlite3
 import difflib
+from language import infinitive
 
 
 ci_units = {
@@ -51,48 +52,64 @@ async def physics_calc(text: str) -> list:
     conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/UchiDoma-NewProject/Physical_formulas.db')
     cursor = conn.cursor()
 
-    cursor.execute('''SELECT value, dynamics_formulas.formula, kinematics_formulas.formula, units, name FROM "values"
-                    LEFT JOIN dynamics_formulas
-                    ON dynamics_formulas.value_id = id
-                    LEFT JOIN kinematics_formulas
-                    ON kinematics_formulas.value_id = id
-                    LEFT JOIN hydrostatics_formulas
-                    ON kinematics_formulas.value_id = id
-                    ORDER BY value
-    ''')
+    cursor.execute('''SELECT value, kinematics_formulas.formula, units, name FROM "values", "kinematics_formulas"
+                        WHERE id = kinematics_formulas.value_id
+                 ''')
+    bd_info = cursor.fetchall()
 
-    result = tuple(filter(lambda x: not (x[1] is None and x[2] is None), cursor.fetchall()))
+    cursor.execute('''SELECT value, dynamics_formulas.formula, units, name FROM "values", "dynamics_formulas"
+                        WHERE id = dynamics_formulas.value_id
+                 ''')
+    bd_info += cursor.fetchall()
 
-    numbers = map(lambda x: x.split()[1], await input_corr(text))
+    cursor.execute('''SELECT value, hydrostatics_formulas.formula, units, name FROM "values", "hydrostatics_formulas"
+                        WHERE id = hydrostatics_formulas.value_id
+                 ''')
 
+    bd_info += cursor.fetchall()
+    print(*bd_info, sep='\n')
+
+    units = map(lambda x: x.split()[1], await input_corr(text))
+    print(*units)
+
+    """
+    # Можно сделать из этого дополнительную проверку
+    # Не работает, т.к. есть разные величины с одними и теми же единицами измерения
     # Добавление формул по совпадениям единиц измерений
     res = []
-    for elem in numbers:
+    for elem in units:
         for unit in result:
             if unit[3] == elem:
                 if unit[1] is not None:
                     res.append(unit[0] + ' = ' + unit[1])
                 if unit[2] is not None:
                     res.append(unit[0] + ' = ' + unit[2])
+    """
 
     cursor.execute('''SELECT name FROM "values"''')
     names = tuple(map(lambda x: x[0], cursor.fetchall()))
 
     # Вычисление процента совпадений
-    sims = []
+
+    # Для начала создаем список из инфинитивов слов запроса
+    inf_l = []
     for word in text.split():
-        pairs_sim = tuple(filter(lambda x: x[2] >= 0.75, [(name, word, await similarity(name, word)) for name in names]))
+        inf_l.append(infinitive(word))
+
+    sims = []
+    for word in inf_l:
+        pairs_sim = tuple(filter(lambda x: x[2] >= 0.95,
+                                 [(name, word, await similarity(name, word)) for name in names]))
         if pairs_sim:
-            sims.append(pairs_sim)
+            print(pairs_sim)
+            sims.append(pairs_sim[0][0])
 
     # Добавление формул по совпадениям слов
+    exception_words = ['сила', 'энергия']
+    res = []
     for elem in sims:
-        elem = elem[0][0]
-        for el in result:
-            if elem in el:
-                if el[1] is not None:
-                    res.append(el[0] + ' = ' + el[1])
-                if el[2] is not None:
-                    res.append(el[0] + ' = ' + el[2])
+        for line in bd_info:
+            if elem in line[3] and elem not in exception_words:
+                res.append(line[0] + ' = ' + line[1])
 
     return list(dict.fromkeys(sorted(res, key=lambda x: -res.count(x))))
