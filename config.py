@@ -3,31 +3,38 @@ from aiogram.dispatcher import Dispatcher
 from data import TOKEN
 from dotenv import load_dotenv
 import sqlite3
+from typing import List, Tuple, NewType
 
 
-def collect_info():
+Value = NewType('Value', str)
+Formula = NewType('Formula', str)
+Units = NewType('Units', str)
+Name = NewType('Name', str)
+
+
+def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
     conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/UchiDoma-NewProject/Physical_formulas.db')
     cursor = conn.cursor()
 
     cursor.execute('''SELECT value, kinematics_formulas.formula, units, name FROM "values", "kinematics_formulas"
                             WHERE id = kinematics_formulas.value_id
                      ''')
-    bd_info = cursor.fetchall()
+    db = cursor.fetchall()
 
     cursor.execute('''SELECT value, dynamics_formulas.formula, units, name FROM "values", "dynamics_formulas"
                             WHERE id = dynamics_formulas.value_id
                      ''')
-    bd_info += cursor.fetchall()
+    db += cursor.fetchall()
 
     cursor.execute('''SELECT value, hydrostatics_formulas.formula, units, name FROM "values", "hydrostatics_formulas"
                             WHERE id = hydrostatics_formulas.value_id
                      ''')
 
-    bd_info += cursor.fetchall()
+    db += cursor.fetchall()
 
     conn.close()
 
-    return bd_info
+    return db
 
 
 load_dotenv()
