@@ -5,7 +5,7 @@ from config import question_words, synonym_words
 from config import db_info
 
 
-# Выделение физических феличин из текста
+# Выделение физических величин из текста
 async def input_corr(text: str) -> list:
     numbers = re.findall(r'\d+(?:,*\d+)*(?:[\-\+]\d+)*\s[а-яА-Я]+(?:\/(?:[а-я])+)*\d*', text)
     # units_transfrom()
@@ -22,7 +22,7 @@ async def similarity(s1: str, s2: str) -> float:
 
 """
 # Доделать функцию перевода единиц измерения
-def units_tranfrom(numbers: list) -> list:
+def units_transform(numbers: list) -> list:
     for i in range(len(numbers)):
         number = numbers[i].split()[0]
         unit = numbers[i].split()[1]
@@ -102,6 +102,7 @@ async def physics_calc(text: str) -> list:
     # Найдено: средняя скорость -> пропуск следующего цикла со словом скорость
     double_value = False
 
+    available_values = {}
     requested_values = []
     print(*db_info, sep='\n')
     required_values = {}
@@ -193,3 +194,11 @@ async def physics_calc(text: str) -> list:
     res = list(dict.fromkeys(res))
 
     return res
+
+
+async def finding_formulas(value: str) -> str:
+    pass
+
+
+async def value_selecting(formula):
+    pass
