@@ -201,10 +201,26 @@ async def value_collecting(provided_values, inf_l, i, value=None):
     if value:
         for k in range(1, 4):
             if inf_l[i + k].isdigit():
+                # Если в словаре с условием уже существует запись о такой физической величине, то
+                # мы перезаписываем эту запись на значение количества данных в условии таких физических величин,
+                # а для самих физических величин мы делаем отдельные номера(начинающиеся с 0) и записи в словаре
+                # Например:
+                # В условии даны 3 скорости: 10, 20, 30
+                #   С прочтением программой первой скорости будет создана запись 'v': '10'
+                #   С прочтением второй будет перезаписана запись 'v': '10' на 'v': 1, и будут созданы записи:
+                # 'v0': '10' и 'v1': '20'; Запись 'v': 1 будет означать, что есть уже 2 физические величины 'v'
+                #   При прочтении третьей скорости будет изменена запись с количеством скоростей на: 'v': 2,
+                # и создана еще одна запись 'v3': '30'
                 if value in provided_values:
-                    provided_values[value].append(inf_l[i + k])
+                    if type(provided_values[value]) == str:
+                        provided_values[value + '0'] = provided_values[value]
+                        provided_values[value + '1'] = inf_l[i + k]
+                        provided_values[value] = 1
+                    else:
+                        provided_values[value] += 1
+                        provided_values[value + str(provided_values[value])] = inf_l[i + k]
                 else:
-                    provided_values[value] = [inf_l[i + k]]
+                    provided_values[value] = inf_l[i + k]
                 break
     else:
         raise ValueError(f'Такой физической величины не существует: {inf_l[i]}')
