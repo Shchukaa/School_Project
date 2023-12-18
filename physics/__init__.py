@@ -102,9 +102,8 @@ async def physics_calc(text: str) -> list:
     # Найдено: средняя скорость -> пропуск следующего цикла со словом скорость
     double_value = False
 
-    available_values = {}
-    requested_values = []
     print(*db_info, sep='\n')
+    requested_values = []
     required_values = {}
 
     for i in range(len(inf_l)):
@@ -136,64 +135,56 @@ async def physics_calc(text: str) -> list:
                                       or inf_l[i] + ' ' + text[i + 1] == value[3]
                                       or text[i] + ' ' + text[i + 1] == value[3]):
                         print('Составной запрос:', text[i] + ' ' + inf_l[i + 1])
-                        double_value = True
-                        if irv:
-                            requested_values.append(value)
-                            print('------------')
-                            print(requested_values)
-                            print('------------')
-                        if value[0] in required_values:
-                            required_values[value[0]].append(value[1])
-                        else:
-                            required_values[value[0]] = [value[1]]
 
-                        res.append(value[0] + ' = ' + value[1])
+                        double_value = True
+
+                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
+
+                        # res.append(value[0] + ' = ' + value[1])
 
                     # Проверка на одиночный запрос (текущее слово)
                     elif inf_l[i] == value[3]:
                         print('Одиночный запрос:', inf_l[i])
-                        if irv:
-                            requested_values.append(value)
-                            print('------------')
-                            print(requested_values)
-                            print('------------')
-                        if value[0] in required_values:
-                            required_values[value[0]].append(value[1])
-                        else:
-                            required_values[value[0]] = [value[1]]
-
-                        res.append(value[0] + ' = ' + value[1])
+                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
+                        # res.append(value[0] + ' = ' + value[1])
                 else:
                     # В последнем цикле делаем проверку только на одиночный запрос
                     if inf_l[i] == value[3]:
                         print('Одиночный запрос:', inf_l[i])
-                        if irv:
-                            requested_values.append(value)
-                            print('------------')
-                            print(requested_values)
-                            print('------------')
-                        if value[0] in required_values:
-                            required_values[value[0]].append(value[1])
-                        else:
-                            required_values[value[0]] = [value[1]]
-
-                        res.append(value[0] + ' = ' + value[1])
+                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
+                        # res.append(value[0] + ' = ' + value[1])
             # irv = False
 
     if requested_values:
-        required_values = list(dict.fromkeys(requested_values))
+        requested_values = list(dict.fromkeys(requested_values))
         print('Найти:')
-        for elem in required_values:
+        for elem in requested_values:
             print(elem[0] + ' - ' + elem[3])
     else:
         print('Не могу определить вопрос')
 
+    print(f'required_values: {required_values}')
     for key in required_values:
         required_values[key] = list(dict.fromkeys(required_values[key]))
     print(f'required_values: {required_values}')
-    res = list(dict.fromkeys(res))
-
+    for value in required_values:
+        for formula in required_values[value]:
+            res.append(value + ' = ' + formula)
     return res
+
+
+async def request_check(irv, value, requested_values, required_values):
+    if irv:
+        requested_values.append(value)
+        print('------------')
+        print(requested_values)
+        print('------------')
+    else:
+        if value[0] in required_values:
+            required_values[value[0]].append(value[1])
+        else:
+            required_values[value[0]] = [value[1]]
+    return required_values, required_values
 
 
 async def finding_formulas(value: str) -> str:
