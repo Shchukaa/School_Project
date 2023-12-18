@@ -3,6 +3,7 @@ import difflib
 from language import infinitive, inflecting
 from config import question_words, synonym_words
 from config import db_info
+import asyncio
 
 
 # Выделение физических величин из текста
@@ -103,7 +104,13 @@ async def physics_calc(text: str) -> list:
     double_value = False
 
     print(*db_info, sep='\n')
+
+    value_names = set([value[3] for value in db_info])
+    # Данные величины
+    provided_values = {}
+    # Спрашиваемые величины
     requested_values = []
+    # Возможные формулы
     required_values = {}
 
     for i in range(len(inf_l)):
@@ -138,22 +145,31 @@ async def physics_calc(text: str) -> list:
 
                         double_value = True
 
-                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
-
+                        required_values, requested_values = await request_check(irv, value, requested_values,
+                                                                                required_values)
                         # res.append(value[0] + ' = ' + value[1])
 
                     # Проверка на одиночный запрос (текущее слово)
                     elif inf_l[i] == value[3]:
                         print('Одиночный запрос:', inf_l[i])
-                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
+                        required_values, requested_values = await request_check(irv, value, requested_values,
+                                                                                required_values)
                         # res.append(value[0] + ' = ' + value[1])
                 else:
-                    # В последнем цикле делаем проверку только на одиночный запрос
+                    # В последнем цикле делаем проверку только на одиночный запрос без составления условия
                     if inf_l[i] == value[3]:
                         print('Одиночный запрос:', inf_l[i])
-                        required_values, requested_values = request_check(irv, value, requested_values, required_values)
+                        required_values, requested_values = await request_check(irv, value, requested_values,
+                                                                                required_values)
                         # res.append(value[0] + ' = ' + value[1])
             # irv = False
+
+            # Нахождение данных величин
+            if inf_l[i] in value_names and i < len(inf_l) - 3:
+                provided_values = await value_collecting(provided_values, inf_l, i)
+            print('----------')
+            print(f'provided_values: {provided_values}')
+            print('----------')
 
     if requested_values:
         requested_values = list(dict.fromkeys(requested_values))
@@ -163,14 +179,37 @@ async def physics_calc(text: str) -> list:
     else:
         print('Не могу определить вопрос')
 
-    print(f'required_values: {required_values}')
     for key in required_values:
         required_values[key] = list(dict.fromkeys(required_values[key]))
     print(f'required_values: {required_values}')
+
     for value in required_values:
         for formula in required_values[value]:
             res.append(value + ' = ' + formula)
+    print(f'requested_values: {requested_values}')
+    print(f'provided_values: {provided_values}')
+
     return res
+
+
+async def value_collecting(provided_values, inf_l, i, value=None):
+    for elem in db_info:
+        if inf_l[i] in elem:
+            value = elem[0]
+            break
+
+    if value:
+        for k in range(1, 4):
+            if inf_l[i + k].isdigit():
+                if value in provided_values:
+                    provided_values[value].append(inf_l[i + k])
+                else:
+                    provided_values[value] = [inf_l[i + k]]
+                break
+    else:
+        raise ValueError(f'Такой физической величины не существует: {inf_l[i]}')
+
+    return provided_values
 
 
 async def request_check(irv, value, requested_values, required_values):
@@ -184,7 +223,8 @@ async def request_check(irv, value, requested_values, required_values):
             required_values[value[0]].append(value[1])
         else:
             required_values[value[0]] = [value[1]]
-    return required_values, required_values
+
+    return required_values, requested_values
 
 
 async def finding_formulas(value: str) -> str:
@@ -193,3 +233,7 @@ async def finding_formulas(value: str) -> str:
 
 async def value_selecting(formula):
     pass
+
+
+asyncio.run(physics_calc('Первую половину пути автомобиль двигается со скоростью 60 км/ч, а вторую - со скоростью 40 '
+                         'км/ч. Найдите среднюю скорость движения автомобиля на всем пути.'))
