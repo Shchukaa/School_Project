@@ -4,6 +4,7 @@ from language import infinitive, inflecting
 from config import question_words, synonym_words
 from config import db_info
 import asyncio
+import sympy
 
 
 # Выделение физических величин из текста
@@ -189,10 +190,15 @@ async def physics_calc(text: str) -> list:
     print(f'requested_values: {requested_values}')
     print(f'provided_values: {provided_values}')
 
+    for value in requested_values:
+        expr = await finding_formulas(value[1], provided_values)
+        print(expr)
+
     return res
 
 
 async def value_collecting(provided_values, inf_l, i, value=None):
+    # Находим обозначение данной физической величины
     for elem in db_info:
         if inf_l[i] in elem:
             value = elem[0]
@@ -207,18 +213,22 @@ async def value_collecting(provided_values, inf_l, i, value=None):
                 # Например:
                 # В условии даны 3 скорости: 10, 20, 30
                 #   С прочтением программой первой скорости будет создана запись 'v': '10'
-                #   С прочтением второй будет перезаписана запись 'v': '10' на 'v': 1, и будут созданы записи:
-                # 'v0': '10' и 'v1': '20'; Запись 'v': 1 будет означать, что есть уже 2 физические величины 'v'
-                #   При прочтении третьей скорости будет изменена запись с количеством скоростей на: 'v': 2,
+                #   С прочтением второй будет перезаписана запись 'v': '10' на 'v': 2, и будут созданы записи:
+                # 'v0': '10' и 'v1': '20'; Запись 'v': 2 будет означать, что есть уже 2 физические величины 'v'
+                #   При прочтении третьей скорости будет изменена запись с количеством скоростей на: 'v': 3,
                 # и создана еще одна запись 'v3': '30'
-                if value in provided_values:
+                if value in provided_values or value + '_count' in provided_values:
+                    print('prvd_vls')
                     if type(provided_values[value]) == str:
+                        print(1)
                         provided_values[value + '0'] = provided_values[value]
                         provided_values[value + '1'] = inf_l[i + k]
-                        provided_values[value] = 1
+                        del provided_values[value]
+                        provided_values[value + '_count'] = 2
                     else:
-                        provided_values[value] += 1
-                        provided_values[value + str(provided_values[value])] = inf_l[i + k]
+                        print(2)
+                        provided_values[value + '_count'] += 1
+                        provided_values[value + str(provided_values[value] - 1)] = inf_l[i + k]
                 else:
                     provided_values[value] = inf_l[i + k]
                 break
@@ -243,13 +253,52 @@ async def request_check(irv, value, requested_values, required_values):
     return required_values, requested_values
 
 
-async def finding_formulas(value: str) -> str:
-    pass
+async def finding_formulas(formula: str, provided_values, k=0) -> str:
+    """
+    k += 1
+    # Условие выхода из цикла - достижение двойной вложенности k или полное составление итогового алгебраического выражения
+    if k > 2:
+        return
+    """
+    # Получаем физические величины из формулы
+    values = dict.fromkeys(await value_selecting(formula))
+
+    # Рекусривно находим формулы для каждой из полученных физических величин
+    for value in values:
+        if value in provided_values:
+            values[value] = provided_values[value]
+        else:
+            formulas = []
+            for elem in db_info:
+                if value == elem[0]:
+                    formulas.append(elem[1])
+            for f in formulas:
+
+            pass
+
+    for value in values:
+        formula.replace(value, values[value])
+
+    return formula
 
 
 async def value_selecting(formula):
-    pass
+    print(formula)
+    values = []
+    for i in range(len(formula)):
+        symb = formula[i]
+        if symb.isalpha():
+            value = symb
+            if i != len(formula) - 1:
+                next_symb = formula[i + 1]
+                if next_symb.isdigit():
+                    value += next_symb
+            values.append(value)
+
+    values = list(dict.fromkeys(values))
+    print(values)
+    return values
 
 
-asyncio.run(physics_calc('Первую половину пути автомобиль двигается со скоростью 60 км/ч, а вторую - со скоростью 40 '
-                         'км/ч. Найдите среднюю скорость движения автомобиля на всем пути.'))
+asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
+                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля на всем пути.'))
