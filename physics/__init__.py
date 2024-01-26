@@ -192,7 +192,7 @@ async def physics_calc(text: str) -> list:
 
     for value in requested_values:
         expr = await finding_formulas(value[1], provided_values)
-        print(expr)
+        print('expr:', expr)
 
     return res
 
@@ -254,31 +254,35 @@ async def request_check(irv, value, requested_values, required_values):
 
 
 async def finding_formulas(formula: str, provided_values, k=0) -> str:
-    """
     k += 1
     # Условие выхода из цикла - достижение двойной вложенности k или полное составление итогового алгебраического выражения
     if k > 2:
-        return
-    """
+        return formula
+
     # Получаем физические величины из формулы
-    values = dict.fromkeys(await value_selecting(formula))
+    values = list(dict.fromkeys(await value_selecting(formula)))
 
     # Рекусривно находим формулы для каждой из полученных физических величин
     for value in values:
+        print('input value:', value)
+        print(provided_values)
         if value in provided_values:
-            values[value] = provided_values[value]
+            print('find_value:', value)
+            formula = formula.replace(value, provided_values[value])
+            # values[value] = provided_values[value]
         else:
             formulas = []
             for elem in db_info:
                 if value == elem[0]:
                     formulas.append(elem[1])
             for f in formulas:
-
+                test_f = await finding_formulas(formula.replace(value, '(' + f + ')'), provided_values, k)
+                print('test_f:', test_f)
             pass
-
+    '''
     for value in values:
         formula.replace(value, values[value])
-
+    '''
     return formula
 
 
@@ -299,6 +303,9 @@ async def value_selecting(formula):
     print(values)
     return values
 
-
+'''
 asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
-                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля на всем пути.'))
+                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля.'))
+'''
+asyncio.run(physics_calc('Тело массой 5 кг толкают с силой 5 Н в одном направлении в течение времени, равном 5 секундам.'
+                         ' Какое расстояние пройдет это тело'))
