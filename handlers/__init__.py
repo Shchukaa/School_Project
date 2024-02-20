@@ -34,9 +34,14 @@ async def start(message):
         text = text.replace('\n', '').replace('\r', ' ')
         await bot.send_message(message.from_user.id,
                                f'Текст📄 вашей задачи:\n{text}')
-        formuls = await physics_calc(text)
+        responce = await physics_calc(text)
+        """
         await bot.send_message(message.from_user.id,
                                f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+        """
+        await bot.send_message(message.from_user.id,
+                               f'✅Решение твоей задачи👇💯:{responce}')
+
         await bot.send_message(message.from_user.id,
                                f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                reply_markup=keyboard)
@@ -47,9 +52,13 @@ async def start(message):
 async def some_send(message):
     global text_task_input
     if text_task_input:
-        formuls = await physics_calc(message.text)
+        responce = await physics_calc(message.text)
+        await bot.send_message(message.from_user.id,
+                               f'✅Решение твоей задачи👇💯:{responce}')
+        """
         await bot.send_message(message.from_user.id,
                                f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
+        """
         await bot.send_message(message.from_user.id,
                                f'🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                reply_markup=keyboard)

@@ -13,7 +13,7 @@ Name = NewType('Name', str)
 
 
 def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
-    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/UchiDoma-NewProject/Physical_formulas.db')
+    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/Shcool Project/Physical_formulas.db')
     cursor = conn.cursor()
 
     cursor.execute('''SELECT value, kinematics_formulas.formula, units, name FROM "values", "kinematics_formulas"
@@ -29,14 +29,29 @@ def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
     cursor.execute('''SELECT value, hydrostatics_formulas.formula, units, name FROM "values", "hydrostatics_formulas"
                             WHERE id = hydrostatics_formulas.value_id
                      ''')
-
     db += cursor.fetchall()
+
+    cursor.execute('''SELECT value, units, name FROM "values"
+                                WHERE id NOT IN (SELECT value_id FROM kinematics_formulas) AND
+                                id NOT IN (SELECT value_id FROM dynamics_formulas) AND
+                                id NOT IN (SELECT value_id FROM hydrostatics_formulas)
+                         ''')
+
+    data = cursor.fetchall()
+    for i in range(len(data)):
+        data[i] = list(data[i])
+        data[i].insert(1, False)
+
+    db += data
 
     conn.close()
 
     return db
 
 
+db = collect_info()
+for elem in db:
+    print(elem)
 load_dotenv()
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)

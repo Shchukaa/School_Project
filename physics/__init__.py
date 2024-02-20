@@ -40,7 +40,7 @@ def units_transform(numbers: list) -> list:
 
 
 # Основная функция
-async def physics_calc(text: str) -> list:
+async def physics_calc(text: str):
     units = map(lambda x: x.split()[1], await input_corr(text))
     print(*units)
 
@@ -100,8 +100,8 @@ async def physics_calc(text: str) -> list:
     # Индикатор отработки двойного запроса
     # (Очевидно, что если в цикле нашлась физическая величина с именем текущее слово + следующее слово, то
     # следующее слово отдельно нам не нужно проверять как одиночный запрос, например:
-    # Текущее слово средняя, следующее слово скорость
-    # Найдено: средняя скорость -> пропуск следующего цикла со словом скорость
+    # Текущее слово "средняя", следующее слово "скорость"
+    # Найдено: средняя скорость -> пропуск следующего цикла со словом "скорость"
     double_value = False
 
     print(*db_info, sep='\n')
@@ -138,6 +138,7 @@ async def physics_calc(text: str) -> list:
                 print('Cycle:', value[3], '-', inf_l[i])
                 if i != len(inf_l) - 1:
                     print(text[i], inf_l[i + 1])
+                    print((text[i], text[i + 1]))
                     # Проверка на составной запрос (текущее слово + следующее слово)
                     if infl_l[i] and (infl_l[i] + ' ' + inf_l[i + 1] == value[3]
                                       or inf_l[i] + ' ' + text[i + 1] == value[3]
@@ -183,18 +184,27 @@ async def physics_calc(text: str) -> list:
     for key in required_values:
         required_values[key] = list(dict.fromkeys(required_values[key]))
     print(f'required_values: {required_values}')
-
+    """
     for value in required_values:
         for formula in required_values[value]:
             res.append(value + ' = ' + formula)
+    """
     print(f'requested_values: {requested_values}')
     print(f'provided_values: {provided_values}')
 
     for value in requested_values:
         expr = await finding_formulas(value[1], provided_values)
         print('expr:', expr)
-
+        try:
+            result = eval(expr)
+            print('Ответ на твою задачу равен:', expr, '=', result)
+            return ' '.join([expr, '=', str(result)])
+        except SyntaxError as error:
+            print('Не найдена формула для одной из величин формулы:', error)
+    return 'Я не смог решить твою задачу'
+    """
     return res
+    """
 
 
 async def value_collecting(provided_values, inf_l, i, value=None):
@@ -254,9 +264,12 @@ async def request_check(irv, value, requested_values, required_values):
 
 
 async def finding_formulas(formula: str, provided_values, k=0) -> str:
+    print('Начало функции по формуле:', formula, 'k=' + str(k))
     k += 1
-    # Условие выхода из цикла - достижение двойной вложенности k или полное составление итогового алгебраического выражения
+    # Условие выхода из цикла - достижение двойной вложенности k
+    # или полное составление итогового алгебраического выражения
     if k > 2:
+        print('Конец рекурсии', formula)
         return formula
 
     # Получаем физические величины из формулы
@@ -275,14 +288,20 @@ async def finding_formulas(formula: str, provided_values, k=0) -> str:
             for elem in db_info:
                 if value == elem[0]:
                     formulas.append(elem[1])
-            for f in formulas:
-                test_f = await finding_formulas(formula.replace(value, '(' + f + ')'), provided_values, k)
-                print('test_f:', test_f)
+
+            if any(formulas):
+                for f in formulas:
+                    print('Рекурсия, value:', value, ', formulas:', formulas)
+                    test_f = await finding_formulas(formula.replace(value, '(' + f + ')'), provided_values, k)
+                    print('test_f:', test_f)
+            else:
+                return ''
             pass
     '''
     for value in values:
         formula.replace(value, values[value])
     '''
+    print('Last return:', formula)
     return formula
 
 
@@ -303,9 +322,13 @@ async def value_selecting(formula):
     print(values)
     return values
 
+
 '''
 asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
                          'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля.'))
+
+asyncio.run(physics_calc('Тело движется со скоростью 20 м/c в течении времени, равному 5 секундам.'
+                         ' Какое расстояние пройдет это тело?'))
 '''
-asyncio.run(physics_calc('Тело массой 5 кг толкают с силой 5 Н в одном направлении в течение времени, равном 5 секундам.'
-                         ' Какое расстояние пройдет это тело'))
+asyncio.run(physics_calc('Тело движется со ускорением 2 м/c^2 в течении времени, равному 5 секундам, сила упругости равна 10 дж. Начальная '
+                         'скорость равна 0. Какое расстояние пройдет это тело?'))
