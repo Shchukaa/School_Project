@@ -220,9 +220,12 @@ async def physics_calc(text: str):
     print(f'provided_values: {provided_values}')
 
     for value in requested_values:
-        expr = await finding_formulas(value[1], provided_values)
-        print('expr:', expr)
+        expr, formulas = await finding_formulas(value[0], value[1], provided_values)
+        print('expr:', expr, 'formulas:', formulas)
         try:
+            print('Формулы:')
+            for elem in formulas:
+                print(elem)
             result = eval(expr)
             print('Ответ на твою задачу равен:', expr, '=', result)
             return ' '.join([expr, '=', str(result)])
@@ -299,15 +302,17 @@ async def request_check(irv, value, requested_values, required_values):
     return required_values, requested_values
 
 
-async def finding_formulas(formula: str, provided_values, result_formulas=[], k=0):
+async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=[], k=0):
     print('Начало функции по формуле:', formula, 'k=' + str(k))
     k += 1
+    if k == 1:
+        result_formulas.append(value_name + '=' + formula)
     # Условие выхода из цикла - достижение двойной вложенности k
     # или полное составление итогового алгебраического выражения
     if k > 2:
         print('Неудачный конец рекурсии', formula)
         result_formulas.pop()
-        return ''
+        return False, result_formulas
     else:
         # Получаем физические величины из формулы
         values = list(dict.fromkeys(await value_selecting(formula)))
@@ -325,23 +330,32 @@ async def finding_formulas(formula: str, provided_values, result_formulas=[], k=
                 for elem in db_info:
                     if value == elem[0]:
                         formulas.append(elem[1])
+                # ----------------------------------------Убрать эту строку
+                formulas = formulas[::-1]
+                # ----------------------------------------
 
                 if any(formulas):
                     for f in formulas:
-                        result_formulas.append(f)
+                        result_formulas.append(value + '=' + f)
+                        result, result_formulas = await finding_formulas(value, formula.replace(value, '(' + f + ')'),
+                                                                         provided_values,
+                                                                         result_formulas=result_formulas, k=k)
                         print('Рекурсия, value:', value, ', formulas:', formulas, 'result_formulas:', result_formulas)
-                        formula.replace(value, '(' + await finding_formulas(formula.replace(value, '(' + f + ')'),
-                                                                            provided_values,
-                                                                            result_formulas=result_formulas, k=k) + ')')
+                        if result:
+                            print('result: ', formula, result)
+                            try:
+                                eval(result)
+                                return result, result_formulas
+                            except BaseException:
+                                pass
                         # print('test_f:', test_f)
                 else:
                     print('Нет ни одной подходящей формулы')
-                    return ''
+                    return False, result_formulas
                 pass
 
         print('Last return:', formula)
-        if k > 1:
-            return formula
+
         return formula, result_formulas
 
 
