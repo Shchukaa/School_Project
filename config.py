@@ -48,10 +48,11 @@ def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
 
     return db
 
-
+"""
 db = collect_info()
 for elem in db:
     print(elem)
+"""
 load_dotenv()
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
