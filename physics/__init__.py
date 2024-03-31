@@ -5,6 +5,7 @@ from config import question_words, synonym_words
 from config import db_info
 import asyncio
 import sympy
+from copy import deepcopy
 
 
 # Выделение физических величин из текста
@@ -222,19 +223,17 @@ async def physics_calc(text: str):
     for value in requested_values:
         expr, formulas = await finding_formulas(value[0], value[1], provided_values)
         print('expr:', expr, 'formulas:', formulas)
-        try:
-            print('Формулы:')
-            for elem in formulas:
-                print(elem)
-            result = eval(expr)
-            print('Ответ на твою задачу равен:', expr, '=', result)
-            return ' '.join([expr, '=', str(result)])
-        except SyntaxError as error:
-            print('Не найдена формула для одной из величин формулы:', error)
+        if expr:
+            try:
+                print('Формулы:')
+                for elem in formulas:
+                    print(elem)
+                result = eval(expr)
+                print('Ответ на твою задачу равен:', expr, '=', result)
+                return ' '.join([expr, '=', str(result)])
+            except SyntaxError as error:
+                print('Не найдена формула для одной из величин формулы:', error)
     return 'Я не смог решить твою задачу'
-    """
-    return res
-    """
 
 
 async def value_collecting(provided_values, word, inf_l, i, value=None):
@@ -302,9 +301,14 @@ async def request_check(irv, value, requested_values, required_values):
     return required_values, requested_values
 
 
-async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=[], k=0):
-    print('Начало функции по формуле:', formula, 'k=' + str(k))
+async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=None, k=0):
+    # ---Python one love---
+    # Сразу указать дефолтное значение для result_formulas нельзя (result_formulas=[] неочевидно работает)
+    if not result_formulas:
+        result_formulas = []
+    # ---------------------
     k += 1
+    print('Начало функции по формуле:', formula, 'result_formulas:', result_formulas, 'k=' + str(k))
     if k == 1:
         result_formulas.append(value_name + '=' + formula)
     # Условие выхода из цикла - достижение двойной вложенности k
@@ -312,12 +316,13 @@ async def finding_formulas(value_name: str, formula: str, provided_values, resul
     if k > 2:
         print('Неудачный конец рекурсии', formula)
         result_formulas.pop()
+        print('result_formulas.pop:', result_formulas)
         return False, result_formulas
     else:
         # Получаем физические величины из формулы
         values = list(dict.fromkeys(await value_selecting(formula)))
 
-        # Рекусривно находим формулы для каждой из полученных физических величин
+        # Рекурсивно находим формулы для каждой из полученных физических величин
         for value in values:
             print('input value:', value)
             print(provided_values)
@@ -337,12 +342,22 @@ async def finding_formulas(value_name: str, formula: str, provided_values, resul
                 if any(formulas):
                     for f in formulas:
                         result_formulas.append(value + '=' + f)
-                        result, result_formulas = await finding_formulas(value, formula.replace(value, '(' + f + ')'),
-                                                                         provided_values,
-                                                                         result_formulas=result_formulas, k=k)
-                        print('Рекурсия, value:', value, ', formulas:', formulas, 'result_formulas:', result_formulas)
+                        print('Рекурсия, value:', value, ', formulas:', formulas)
+                        # Костыль с __count=1 в formula.replace. Продумать сложную реализацию проверки состовной
+                        # физической величины, например: в формуле x-x0 программа подбирает формулу для x и подставляет
+                        # ее не только в x, но и в x0, и вместо (x0+v0*t+(a*t**2)/2)-x0
+                        # получается (x0+v0*t+(a*t**2)/2)-(x0+v0*t+(a*t**2)/2)0
+                        result, test_formulas = await finding_formulas(value, formula.replace(value, '(' + f + ')', 1),
+                                                                       provided_values,
+                                                                       result_formulas=deepcopy(result_formulas), k=k)
+                        print('test_formulas:', test_formulas)
+                        # if len result formulas > len test formulas: pass else:
+                        print('result_formulas1:', result_formulas)
+                        if test_formulas:
+                            result_formulas = test_formulas
+                        print('result_formulas2:', result_formulas)
                         if result:
-                            print('result: ', formula, result)
+                            print('result: ', result)
                             try:
                                 eval(result)
                                 return result, result_formulas
@@ -351,10 +366,14 @@ async def finding_formulas(value_name: str, formula: str, provided_values, resul
                         # print('test_f:', test_f)
                 else:
                     print('Нет ни одной подходящей формулы')
+                    result_formulas.pop()
                     return False, result_formulas
-                pass
 
         print('Last return:', formula)
+        try:
+            eval(formula)
+        except:
+            result_formulas.pop()
 
         return formula, result_formulas
 
@@ -378,17 +397,22 @@ async def value_selecting(formula):
 
 
 '''
-asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
-                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля.'))
 
-asyncio.run(physics_calc('Тело движется со скоростью 20 м/c в течении времени, равному 5 секундам.'
-                         ' Какое расстояние пройдет это тело?'))
 
-asyncio.run(physics_calc('Тело движется со ускорением 2 м/c^2 в течении времени, равному 5 секундам, сила упругости 
-                         'равна 10 дж. Начальная скорость равна 0. Какое расстояние пройдет это тело?')) 
-'''
+
 asyncio.run(physics_calc('Тело движется из начального положения 3 м с начальной скоростью 3 м/с в течение времени '
                          'равном 5 секундам. Известно, что конечная скорость тела равна 6 м/с. В какой координате '
                          'окажется это тело?'))
-# При определении расстояния, пролйденного телом нужно учесть характер движения(равномерное или равноускоренное).
-# Для этого можно проверить наличие ускорения или начальной и конечной скорости в условии
+# 25.5
+asyncio.run(physics_calc('Тело движется со ускорением 2 м/c^2 в течении времени, равному 5 секундам, сила упругости '
+                         'равна 10 дж. Начальная скорость равна 0. Какое расстояние пройдет это тело?'))
+# 25.0
+asyncio.run(physics_calc('Тело движется со скоростью 20 м/c в течении времени, равному 5 секундам.'
+                         ' Какое расстояние пройдет это тело?'))
+# 100
+'''
+asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
+                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля.'))
+
+# При определении расстояния, пройденного телом нужно учесть характер движения(равномерное или равноускоренное).
+# Для этого можно проверить наличие ускорения или начальной и конечной скорости в условии.
