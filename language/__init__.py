@@ -32,4 +32,4 @@ def inflecting(word1: str, word2: str):
     return word1
 
 
-print(inflecting('сила', 'упругость'))
+print(infinitive('длинной'))

@@ -12,8 +12,8 @@ Units = NewType('Units', str)
 Name = NewType('Name', str)
 
 
-def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
-    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/Shcool Project/Physical_formulas.db')
+async def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
+    conn = sqlite3.connect('C:/Users/t106o/PycharmProjects/Shcool Project/Physical_formulas_test.db')
     cursor = conn.cursor()
 
     cursor.execute('''SELECT value, kinematics_formulas.formula, units, name FROM "values", "kinematics_formulas"
@@ -48,18 +48,19 @@ def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
 
     return db
 
-"""
+
+'''
 db = collect_info()
 for elem in db:
     print(elem)
-"""
+'''
 load_dotenv()
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 text_task_input = False
 image_task_input = False
-question_words = ('определить', 'сколько', 'найти', 'какой', 'какая', 'какое')
-db_info = collect_info()
+question_words = ('определить', 'записать', 'сколько', 'найти', 'какой', 'какая', 'какое')
+db_info = await collect_info()
 synonym_words = ['расстояние;длина;путь']
 ci_units = {
     'К': 10**3,

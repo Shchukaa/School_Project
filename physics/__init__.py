@@ -221,27 +221,71 @@ async def physics_calc(text: str):
     print(f'provided_values: {provided_values}')
 
     for value in requested_values:
-        expr, formulas = await finding_formulas(value[0], value[1], provided_values)
-        print('expr:', expr, 'formulas:', formulas)
-        if expr:
-            try:
-                print('Формулы:')
-                for elem in formulas:
-                    print(elem)
-                result = eval(expr)
-                print('Ответ на твою задачу равен:', expr, '=', result)
-                return ' '.join([expr, '=', str(result)])
-            except SyntaxError as error:
-                print('Не найдена формула для одной из величин формулы:', error)
-    return 'Я не смог решить твою задачу'
+        for elem in requested_values:
+            if 'x(t)' in elem:
+                expr, formulas = await finding_formulas(value[0], value[1], provided_values, ignore_values=['t'])
+                expr = expr.split('+')
+                expr[2] = expr[2].split('*')
+                expr[2][0] = str(round(eval(expr[2][0])))
+                if expr[2][0] == '1':
+                    expr[2] = expr[2][1]
+                else:
+                    expr[2] = '*'.join([expr[2][0], expr[2][1]])
+                expr = '+'.join(expr)
+                print('Ответ на твою задачу равен: x(t)=' + expr)
+                return ' '.join(['x(t)=', expr])
+
+        else:
+            expr, formulas = await finding_formulas(value[0], value[1], provided_values,
+                                                    ignore_formulas=[])
+            print('expr:', expr, 'formulas:', formulas)
+            if expr:
+                try:
+                    print('Формулы:')
+                    for elem in formulas:
+                        print(elem)
+                    result_formula = formulas[0]
+                    for i in range(1, len(formulas)):
+                        vl, frml = formulas[i].split(' = ')
+                        result_formula = result_formula.replace(vl, '(' + frml + ')')
+                    print('Итоговая формула:', result_formula)
+                    result = eval(expr)
+                    print('Ответ на твою задачу равен:', expr, '=', result)
+                    # Очищаем данные величины от технической составляющей
+                    given = {}
+                    for key in provided_values:
+                        if '_count' not in key:
+                            given[key] = ''.join(provided_values[key])
+                    given = "\n".join([key + " = " + given[key] for key in given])
+                    to_find = requested_values[0][0] + ' - ?'
+                    formulas = '\n'.join(formulas)
+                    expr = ' '.join([expr, '=', str(result)]) + ' ' + requested_values[0][2]
+                    print('✅Решение твоей задачи👇💯: \n'
+                          'Дано:\n'
+                          f'{given}\n'
+                          'Найти:\n'
+                          f'{to_find}\n'
+                          'Решение:\n'
+                          f'{formulas}\n'
+                          'Итоговая формула:\n'
+                          f'{result_formula}\n'
+                          'Ответ:\n'
+                          f'{expr}')
+                    return given, to_find, formulas, result_formula, expr
+                except NameError as error:
+                    print('Не найдена формула для одной из величин формулы:', error)
+                except IndexError as error:
+                    print('Не найдено ни одной формулы', error)
+    return None
 
 
-async def value_collecting(provided_values, word, inf_l, i, value=None):
+async def value_collecting(provided_values, word, inf_l, i, value=None, unit=None):
     # Находим обозначение данной физической величины
     for elem in db_info:
         if word == elem[3]:
             print('value_collecting:', word, elem)
             value = elem[0]
+            unit = elem[2]
             break
 
     if value:
@@ -262,23 +306,24 @@ async def value_collecting(provided_values, word, inf_l, i, value=None):
                 if value in provided_values or value + '_count' in provided_values or value + '0' in provided_values:
                     print('prvd_vls')
                     # Первое добавление повторной величины
-                    if value + '0' in provided_values and type(provided_values[value + '0']) == str:
+                    if value + '0' in provided_values and type(provided_values[value + '0']) == list:
                         print(1)
-                        provided_values[value + '1'] = inf_l[i + k]
+                        provided_values[value + '1'] = [inf_l[i + k], unit]
                         provided_values[value + '_count'] = 2
-                    elif type(provided_values[value]) == str:
+                    elif type(provided_values[value]) == list:
                         print(1)
                         provided_values[value + '0'] = provided_values[value]
-                        provided_values[value + '1'] = inf_l[i + k]
+                        provided_values[value + '1'] = [inf_l[i + k], unit]
                         del provided_values[value]
                         provided_values[value + '_count'] = 2
                     # Повторное добавление физической величины
                     else:
                         print(2)
+                        print(provided_values)
                         provided_values[value + '_count'] += 1
                         provided_values[value + str(provided_values[value] - 1)] = inf_l[i + k]
                 else:
-                    provided_values[value] = inf_l[i + k]
+                    provided_values[value] = [inf_l[i + k], unit]
                 break
     else:
         raise ValueError(f'Такой физической величины не существует: {word}')
@@ -301,61 +346,97 @@ async def request_check(irv, value, requested_values, required_values):
     return required_values, requested_values
 
 
-async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=None, k=0):
+async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=None, k=0, digit='',
+                           ignore_values=None, ignore_formulas=None):
     # ---Python one love---
     # Сразу указать дефолтное значение для result_formulas нельзя (result_formulas=[] неочевидно работает)
     if not result_formulas:
         result_formulas = []
+    if not ignore_values:
+        ignore_values = []
+    if not ignore_formulas:
+        ignore_formulas = []
+
     # ---------------------
     k += 1
+    print('recursion', k)
     print('Начало функции по формуле:', formula, 'result_formulas:', result_formulas, 'k=' + str(k))
     if k == 1:
-        result_formulas.append(value_name + '=' + formula)
+        result_formulas.append(value_name + ' = ' + formula)
     # Условие выхода из цикла - достижение двойной вложенности k
     # или полное составление итогового алгебраического выражения
-    if k > 2:
+    if k > 5:
         print('Неудачный конец рекурсии', formula)
         result_formulas.pop()
         print('result_formulas.pop:', result_formulas)
         return False, result_formulas
     else:
         # Получаем физические величины из формулы
-        values = list(dict.fromkeys(await value_selecting(formula)))
+        values = list(dict.fromkeys(await value_selecting(formula, '')))
 
         # Рекурсивно находим формулы для каждой из полученных физических величин
         for value in values:
+            if value in ignore_values:
+                continue
+            if not value[-1].isdigit():
+                value += digit
             print('input value:', value)
             print(provided_values)
             if value in provided_values:
                 print('find_value:', value)
-                formula = formula.replace(value, provided_values[value])
-                # values[value] = provided_values[value]
+                formula = formula.replace(value, provided_values[value][0])
+
             else:
+                if value[-1].isdigit():
+                    print('digit')
+                    value, digit = value[:-1], value[-1]
+
                 formulas = []
                 for elem in db_info:
-                    if value == elem[0]:
-                        formulas.append(elem[1])
-                # ----------------------------------------Убрать эту строку
-                formulas = formulas[::-1]
-                # ----------------------------------------
+                    if value == elem[0] and elem[1] and elem[1] not in ignore_formulas:
+                        print(elem)
+                        if digit and value + digit not in elem[1]:
+                            vls = await value_selecting(elem[1], digit)
+                            e = deepcopy(elem[1])
+                            # Для того чтобы избежать повторных ложных замен переменных в ситуации, когда обозначение
+                            # одной переменной может состоять в обозначении другой, сначала заменим переменные на
+                            # условное обозначение: [номер переменной в списке vls], а потом уже в отдельном цикле
+                            # установим реальные названия
+                            for i in range(len(vls)):
+                                if vls[i][-1].isdigit() and vls[i][-2].isdigit():
+                                    e = e.replace(vls[i][:1] + vls[i][2:], '[' + str(i) + ']')
+                                else:
+                                    e = e.replace(vls[i][:-1], '[' + str(i) + ']')
+
+                            for i in range(len(vls)):
+                                e = e.replace('[' + str(i) + ']', vls[i])
+
+                            formulas.append(e)
+
+                        elif not digit and result_formulas[0].split('=')[0] not in elem[1]:
+                            print(result_formulas)
+                            print(value, elem[1])
+                            formulas.append(elem[1])
+
+                print('formulas', formulas)
 
                 if any(formulas):
                     for f in formulas:
-                        result_formulas.append(value + '=' + f)
-                        print('Рекурсия, value:', value, ', formulas:', formulas)
+                        result_formulas.append(value + digit + ' = ' + f)
+                        print('Рекурсия, value:', value + digit, ', formulas:', formulas)
                         # Костыль с __count=1 в formula.replace. Продумать сложную реализацию проверки состовной
                         # физической величины, например: в формуле x-x0 программа подбирает формулу для x и подставляет
                         # ее не только в x, но и в x0, и вместо (x0+v0*t+(a*t**2)/2)-x0
                         # получается (x0+v0*t+(a*t**2)/2)-(x0+v0*t+(a*t**2)/2)0
-                        result, test_formulas = await finding_formulas(value, formula.replace(value, '(' + f + ')', 1),
+                        result, test_formulas = await finding_formulas(value, formula.replace(value + digit,
+                                                                                              '(' + f + ')', 1),
                                                                        provided_values,
-                                                                       result_formulas=deepcopy(result_formulas), k=k)
+                                                                       result_formulas=deepcopy(result_formulas), k=k,
+                                                                       digit=digit, ignore_formulas=ignore_formulas)
                         print('test_formulas:', test_formulas)
-                        # if len result formulas > len test formulas: pass else:
-                        print('result_formulas1:', result_formulas)
                         if test_formulas:
                             result_formulas = test_formulas
-                        print('result_formulas2:', result_formulas)
+                        print('result_formulas:', result_formulas)
                         if result:
                             print('result: ', result)
                             try:
@@ -363,7 +444,6 @@ async def finding_formulas(value_name: str, formula: str, provided_values, resul
                                 return result, result_formulas
                             except BaseException:
                                 pass
-                        # print('test_f:', test_f)
                 else:
                     print('Нет ни одной подходящей формулы')
                     result_formulas.pop()
@@ -378,17 +458,20 @@ async def finding_formulas(value_name: str, formula: str, provided_values, resul
         return formula, result_formulas
 
 
-async def value_selecting(formula):
+async def value_selecting(formula, digit):
     print(formula)
     values = []
     for i in range(len(formula)):
         symb = formula[i]
         if symb.isalpha():
             value = symb
+            value += digit
             if i != len(formula) - 1:
                 next_symb = formula[i + 1]
                 if next_symb.isdigit():
                     value += next_symb
+            if i != len(formula) - 1:
+                print('value', value, 'next_symb', next_symb, 'digit', digit)
             values.append(value)
 
     values = list(dict.fromkeys(values))
@@ -397,22 +480,34 @@ async def value_selecting(formula):
 
 
 '''
-
+asyncio.run(physics_calc('Машина ехала со скоростью 20 м/c в течении времени, равному 5 секундам.'
+                         ' Какое расстояние пройдет это тело?'))
+# 100
 
 
 asyncio.run(physics_calc('Тело движется из начального положения 3 м с начальной скоростью 3 м/с в течение времени '
                          'равном 5 секундам. Известно, что конечная скорость тела равна 6 м/с. В какой координате '
                          'окажется это тело?'))
 # 25.5
+
+asyncio.run(physics_calc('Тело двигалось по прямой из точки с начальной координатой 3 м с начальной скоростью 5 м/с.'
+                         ' Ускорение равно 2 м/с. Записать уравнение движения тела.'))
+# x(t)=3+5*t+t^2
+
 asyncio.run(physics_calc('Тело движется со ускорением 2 м/c^2 в течении времени, равному 5 секундам, сила упругости '
                          'равна 10 дж. Начальная скорость равна 0. Какое расстояние пройдет это тело?'))
 # 25.0
-asyncio.run(physics_calc('Тело движется со скоростью 20 м/c в течении времени, равному 5 секундам.'
-                         ' Какое расстояние пройдет это тело?'))
-# 100
+
+
+
+
+asyncio.run(physics_calc('Тело движется по дороге длиной 100 м с начальной скоростью 10 м/c. Известно, что конечная '
+                         'скорость тела равна 6 м/c. За какое время тело завершит свое движение по дороге?'))
+# 12.5
+asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 69 м/с, расстояние еще в 100 м  - со '
+                         'скоростью 111 м/с. Найдите среднюю скорость движения автомобиля.'))
+# 85.1
 '''
-asyncio.run(physics_calc('Расстояние 100 м автомобиль двигается со скоростью 60 м/с, расстояние еще в 100 м  - со '
-                         'скоростью 40 м/с. Найдите среднюю скорость движения автомобиля.'))
 
 # При определении расстояния, пройденного телом нужно учесть характер движения(равномерное или равноускоренное).
 # Для этого можно проверить наличие ускорения или начальной и конечной скорости в условии.
