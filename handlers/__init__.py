@@ -70,8 +70,7 @@ async def start(message):
 async def start(message):
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     buttons = ('Добавить недостающую физическую величину в Дано', 'Убрать лишнюю физическую величину в Дано',
-               'Запретить неподходящую формулу в решении', 'Добавить недостающую формулу в решении',
-               'Изменить вопрос задачи')
+               'Запретить неподходящую формулу в решении', 'Добавить недостающую формулу в решении')
     keyboard.add(*buttons)
     await bot.send_message(message.from_user.id, 'Укажи на мою ошибку одним из предложенных способов и я постараюсь ее '
                                                  'исправить!',
