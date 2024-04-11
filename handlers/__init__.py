@@ -73,8 +73,7 @@ async def start(message):
                'Запретить неподходящую формулу в решении', 'Добавить недостающую формулу в решении')
     keyboard.add(*buttons)
     await bot.send_message(message.from_user.id, 'Укажи на мою ошибку одним из предложенных способов и я постараюсь ее '
-                                                 'исправить!',
-                           reply_markup=keyboard)
+                                                 'исправить!', reply_markup=keyboard)
 
 
 @dp.message_handler(regexp='Добавить недостающую формулу в решении')
