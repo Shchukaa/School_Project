@@ -30,6 +30,3 @@ def inflecting(word1: str, word2: str):
             return
         word1 = w1_tags.inflect({w2_gender}).word
     return word1
-
-
-print(infinitive('длинной'))
