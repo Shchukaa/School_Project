@@ -5,7 +5,6 @@ from config import question_words, synonym_words
 import sqlite3
 from typing import List, Tuple, NewType
 import asyncio
-import sympy
 from copy import deepcopy
 
 Value = NewType('Value', str)
@@ -87,6 +86,7 @@ def units_transform(numbers: list) -> list:
 # Основная функция
 async def physics_calc(text=None, requested_values=None, provided_values=None, ignore_values=None,
                        ignore_formulas=None, db_info=None):
+
     if not db_info:
         db_info = collect_info()
     if text:
@@ -302,7 +302,8 @@ async def text_to_machine_condition_forming(text, db_info=None):
 async def machine_to_chat_condition_forming(provided_values, requested_values, i, ignore_values=None,
                                             ignore_formulas=None, provided_formulas=None, provided_result_formula=None,
                                             provided_expr=None, db_info=None):
-    global expr
+    global timer
+    timer = False
     if not provided_expr and not provided_formulas:
         expr, formulas = await finding_formulas(requested_values[i][0], requested_values[i][1], provided_values,
                                                 ignore_formulas=ignore_formulas, ignore_values=ignore_values,
@@ -633,8 +634,10 @@ async def value_selecting(formula, digit):
 
 async def wait():
     global timer
-    global expr
-    timer = await asyncio.sleep(10, result=True)
+    for i in range(10):
+        await asyncio.sleep(0.2)
+        print('sleep')
+    timer = True
     print('Timer close')
 
 
@@ -674,5 +677,5 @@ asyncio.run(physics_calc('Тело движется по дороге длино
 # При более, чем 10 шагов в задаче будет возникать ошибка, т.к. программа во многих функциях отбрасывает номер формулы
 # напрямую через обрезание строки на 3 пункта: [3:]
 
-# функцимя wait продолжает вывполняться и занимать время даже после успешного окончания функции решения задачи.
+# функция wait продолжает выполняться и занимать время даже после успешного окончания функции решения задачи.
 # Нужно сделать индикатор по типу timer, только в обратную сторону, или использовать этот же таймер
