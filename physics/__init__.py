@@ -8,11 +8,11 @@ import asyncio
 import sympy
 from copy import deepcopy
 
-
 Value = NewType('Value', str)
 Formula = NewType('Formula', str)
 Units = NewType('Units', str)
 Name = NewType('Name', str)
+timer = False
 
 
 def collect_info() -> List[Tuple[Value, Formula, Units, Name]]:
@@ -98,8 +98,10 @@ async def physics_calc(text=None, requested_values=None, provided_values=None, i
             continue
         for elem in requested_values:
             if 'x(t)' in elem:
-                return await machine_to_chat_condition_forming(provided_values, requested_values, i,
-                                                               ignore_values=['t'], db_info=db_info)
+                result = machine_to_chat_condition_forming(provided_values, requested_values, i,
+                                                           ignore_values=['t'], db_info=db_info)
+                if result:
+                    return result
         else:
             print('physics_calc', 'ignore_values:', ignore_values, 'ignore_formulas:', ignore_formulas)
             print('provided_values:', provided_values, 'requested_values:', requested_values)
@@ -300,6 +302,7 @@ async def text_to_machine_condition_forming(text, db_info=None):
 async def machine_to_chat_condition_forming(provided_values, requested_values, i, ignore_values=None,
                                             ignore_formulas=None, provided_formulas=None, provided_result_formula=None,
                                             provided_expr=None, db_info=None):
+    global expr
     if not provided_expr and not provided_formulas:
         expr, formulas = await finding_formulas(requested_values[i][0], requested_values[i][1], provided_values,
                                                 ignore_formulas=ignore_formulas, ignore_values=ignore_values,
@@ -307,7 +310,7 @@ async def machine_to_chat_condition_forming(provided_values, requested_values, i
     else:
         expr, formulas = provided_expr, provided_formulas
     print('expr:', expr, 'formulas:', formulas)
-    if expr:
+    if expr and expr != 'Timer close':
         try:
             print('Формулы:')
             if not provided_formulas:
@@ -376,6 +379,8 @@ async def machine_to_chat_condition_forming(provided_values, requested_values, i
         except IndexError as error:
             print('Не найдено ни одной формулы', error)
             return None
+    elif expr == 'Timer close':
+        return 'Timer close'
 
 
 async def chat_to_machine_condition_forming(condition):
@@ -488,6 +493,9 @@ async def request_check(irv, value, requested_values, required_values):
 
 async def finding_formulas(value_name: str, formula: str, provided_values, result_formulas=None, k=0, digit='',
                            ignore_values=None, ignore_formulas=None, db_info=None):
+    global timer
+    if timer:
+        return 'Timer close', []
     # ---Python one love---
     # Сразу указать дефолтное значение для result_formulas нельзя (result_formulas=[] неочевидно работает)
     if not result_formulas:
@@ -623,6 +631,13 @@ async def value_selecting(formula, digit):
     return values
 
 
+async def wait():
+    global timer
+    global expr
+    timer = await asyncio.sleep(10, result=True)
+    print('Timer close')
+
+
 '''
 asyncio.run(physics_calc('Машина ехала со скоростью 20 м/c в течении времени, равному 5 секундам.'
                          ' Какое расстояние пройдет это тело?'))
@@ -653,8 +668,11 @@ asyncio.run(physics_calc('Тело движется по дороге длино
 
 
 # Ускорить программу
-# Добавить возможность запрета сразу нескольких формул
+# Ограничить время выполнения функции решения задачи
 # Выделить жирным шрифтом маску ввода пользователя + добавить пример добавления физической величины/формулы
 # Добавить отмену действия до его совершения при изменении задачи(при миссклике)
 # При более, чем 10 шагов в задаче будет возникать ошибка, т.к. программа во многих функциях отбрасывает номер формулы
 # напрямую через обрезание строки на 3 пункта: [3:]
+
+# функцимя wait продолжает вывполняться и занимать время даже после успешного окончания функции решения задачи.
+# Нужно сделать индикатор по типу timer, только в обратную сторону, или использовать этот же таймер

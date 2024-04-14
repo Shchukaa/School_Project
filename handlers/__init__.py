@@ -2,9 +2,10 @@ from graphics import photo_input
 # text_task_input, image_task_input нужны для первого случайного сообщения пользователя, хоть и отмечаются как ненужные
 from config import bot, dp, text_task_input, image_task_input
 from physics import physics_calc, chat_to_machine_condition_forming, provided_values_forming, \
-    machine_to_chat_condition_forming
+    machine_to_chat_condition_forming, wait
 from aiogram import types
 from copy import deepcopy
+import asyncio
 
 
 @dp.message_handler(commands=['start', 'help'])
@@ -15,6 +16,21 @@ async def greetings(message):
 
 
 async def input(message):
+    global phys_formula_input
+    global phys_value_input
+    global text_task_input
+    global image_task_input
+    global new_db_info
+    global forbidden_formulas
+    global input_selection
+    input_selection = True
+    phys_formula_input = False
+    phys_value_input = False
+    image_task_input = False
+    text_task_input = False
+    new_db_info = None
+    forbidden_formulas = []
+
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     buttons = ('Текст', 'Изображение')
     keyboard.add(*buttons)
@@ -24,18 +40,24 @@ async def input(message):
 
 @dp.message_handler(regexp='Текст')
 async def start(message):
+    global input_selection
     global text_task_input
-    markup = types.ReplyKeyboardRemove()
-    await bot.send_message(message.from_user.id, 'Введи текст задачи📝:', reply_markup=markup)
-    text_task_input = True
+    if input_selection:
+        markup = types.ReplyKeyboardRemove()
+        await bot.send_message(message.from_user.id, 'Введи текст задачи📝:', reply_markup=markup)
+        text_task_input = True
+        input_selection = False
 
 
 @dp.message_handler(regexp='Изображение')
 async def start(message):
     global image_task_input
-    markup = types.ReplyKeyboardRemove()
-    await bot.send_message(message.from_user.id, 'Загрузи изображение задачи📷:', reply_markup=markup)
-    image_task_input = True
+    global input_selection
+    if input_selection:
+        markup = types.ReplyKeyboardRemove()
+        await bot.send_message(message.from_user.id, 'Загрузи изображение задачи📷:', reply_markup=markup)
+        image_task_input = True
+        input_selection = False
 
 
 @dp.message_handler(regexp='Да, решение верное')
@@ -54,21 +76,12 @@ async def start(message):
 
 @dp.message_handler(regexp='Вернуться в главное меню')
 async def start(message):
-    global phys_formula_input
-    global phys_value_input
-    global text_task_input
-    global image_task_input
-    phys_formula_input = False
-    phys_value_input = False
-    image_task_input = False
-    text_task_input = False
-
     await greetings(message)
 
 
 @dp.message_handler(regexp='Нет, изменить задачу')
 async def start(message):
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
     buttons = ('Добавить недостающую физическую величину в Дано', 'Убрать лишнюю физическую величину в Дано',
                'Запретить неподходящую формулу в решении', 'Добавить недостающую формулу в решении')
     keyboard.add(*buttons)
@@ -139,7 +152,7 @@ async def start(message):
 @dp.message_handler(regexp='Запретить')
 async def start(message):
     global response
-    global forbidden_formula
+    global forbidden_formulas
     print('Запретить формулу №')
     provided_values, requested_values, formulas, result_formula, expr, db_info = \
         await chat_to_machine_condition_forming(response)
@@ -148,8 +161,12 @@ async def start(message):
     for i in range(len(formulas)):
         print(formulas[i], n)
         if formulas[i].startswith(n):
-            forbidden_formula = [formulas[i].split()[-1]]
-            print('forbidden_formula', forbidden_formula)
+            try:
+                forbidden_formulas.append(formulas[i].split()[-1])
+            except:
+                print('forbidden_formulas еще не существует, создание...')
+                forbidden_formulas = [formulas[i].split()[-1]]
+            print('forbidden_formulas', forbidden_formulas)
             break
 
     await confirm_changes_question(message)
@@ -188,27 +205,20 @@ async def start(message):
 
 
 async def confirm_changes_question(message):
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard = types.ReplyKeyboardMarkup()
     buttons = ('Да, реши задачу', 'Нет, изменить задачу')
     keyboard.add(*buttons)
     await bot.send_message(message.from_user.id, 'Это все изменения, которые ты бы хотел внести?',
                            reply_markup=keyboard)
 
 
+
 @dp.message_handler(regexp='Да, реши задачу')
 async def confirm_changes(message):
-    global forbidden_formula
+    global forbidden_formulas
     global new_db_info
-    try:
-        print(forbidden_formula)
-    except:
-        forbidden_formula = []
-    try:
-        print(new_db_info)
-    except:
-        new_db_info = None
     print('confirm_changes - response', response)
-    await solving_physical_task(message, resp=response, ignore_formulas=forbidden_formula, new_db_info=new_db_info)
+    await solving_physical_task(message, resp=response, ignore_formulas=forbidden_formulas, new_db_info=new_db_info)
 
 
 @dp.message_handler(content_types=['photo'])
@@ -229,13 +239,21 @@ async def solving_physical_task(message, resp=None, ignore_formulas=None, new_db
         bot_message = await bot.send_message(message.from_user.id, 'Ожидайте...')
         global response
         if not resp:
-            response = await physics_calc(text=message.text)
+            response = (await asyncio.gather(wait(), physics_calc(text=message.text)))[1]
+
+            # response = await physics_calc(text=message.text)
         else:
             provided_values, requested_values, formulas, result_formula, expr, db_info = \
                 await chat_to_machine_condition_forming(resp)
-            response = await physics_calc(provided_values=provided_values, requested_values=requested_values,
-                                          ignore_formulas=ignore_formulas, db_info=new_db_info)
-        if response:
+
+            response = (await asyncio.gather(wait(), physics_calc(provided_values=provided_values,
+                                                                  requested_values=requested_values,
+                                                                  ignore_formulas=ignore_formulas,
+                                                                  db_info=new_db_info)))[1]
+            # response = await physics_calc(provided_values=provided_values, requested_values=requested_values,
+            #                              ignore_formulas=ignore_formulas, db_info=new_db_info)
+
+        if response and response != 'Timer close':
             given, to_find, formulas, result_formula, expr, provided_values, requested_values, db_info = response
             await bot.edit_message_text(chat_id=bot_message.chat.id, message_id=bot_message.message_id,
                                         text='✅Решение твоей задачи👇💯:\n'
@@ -254,7 +272,7 @@ async def solving_physical_task(message, resp=None, ignore_formulas=None, new_db
             await bot.send_message(message.from_user.id,
                            f'✅Вот подходящие формулы📃 для решения твоей задачи👇💯:\n{", ".join(formuls)}')
             """
-            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            keyboard = types.ReplyKeyboardMarkup()
             buttons = ('Да, решение верное', 'Нет, изменить задачу', 'Вернуться в главное меню')
             keyboard.add(*buttons)
             await bot.send_message(message.from_user.id,
@@ -265,6 +283,14 @@ async def solving_physical_task(message, resp=None, ignore_formulas=None, new_db
                                    '🤠Я готов помочь с решением всех твоих задач! Вводи следующую😤 ',
                                    reply_markup=keyboard)
             """
+        elif response == 'Timer close':
+            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            buttons = ['Вернуться в главное меню', 'Решить задачу без ограничений']
+            keyboard.add(*buttons)
+            await bot.send_message(message.from_user.id,
+                                   'Кажется, твоя задача требует много времени для решения. Если считаете нужным, '
+                                   'вы можете инициализировать процесс полного решения задачи без ограничений.',
+                                   reply_markup=keyboard)
         else:
             keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
             keyboard.add(types.KeyboardButton('Вернуться в главное меню'))
@@ -273,7 +299,6 @@ async def solving_physical_task(message, resp=None, ignore_formulas=None, new_db
                                    'сложными задачами, но не расстраивайся, скоро меня научат решать и такие '
                                    'задачи. Приходи в следующий раз!',
                                    reply_markup=keyboard)
-
 
 
 @dp.message_handler()
